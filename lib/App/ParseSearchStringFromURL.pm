@@ -16,6 +16,7 @@ $SPEC{parse_search_string_from_url} = {
         urls => {
             'x.name.is_plural' => 1,
             'x.name.singular' => 'url',
+            schema => ['array*', of=>'url*'],
             req => 1,
             pos => 0,
             greedy => 1,
@@ -25,6 +26,7 @@ $SPEC{parse_search_string_from_url} = {
         detail => {
             summary => 'If set to true, will also output other '.
                 'components aside from search string',
+            schema => 'bool*',
             cmdline_aliases => {l=>{}},
         },
         module => {
@@ -40,9 +42,12 @@ $SPEC{parse_search_string_from_url} = {
     },
 };
 sub parse_search_string_from_url {
+    #require Array::Iter;
+
     my %args = @_;
 
     my $urls = $args{urls};
+    #$urls = Array::Iter::array_iter($urls) unless ref $urls eq 'CODE';
     my $detail = $args{detail};
     my $mod = $args{module};
 
@@ -51,19 +56,24 @@ sub parse_search_string_from_url {
 
     if ($mod =~ /^URI::ParseSearchString(?:::More)?$/) {
         my $uparse = $mod->new;
-        return sub {
-            my $url = $urls->();
-            return undef unless defined $url;
-            if ($detail) {
-                return {
-                    host          => $uparse->se_host($url),
-                    name          => $uparse->se_name($url),
-                    search_string => $uparse->se_term($url),
-                };
-            } else {
-                return $uparse->se_term($url);
-            }
-        };
+        return [
+            200,
+            "OK",
+            sub {
+                my $url = $urls->();
+                return undef unless defined $url;
+                if ($detail) {
+                    return {
+                        host          => $uparse->se_host($url),
+                        name          => $uparse->se_name($url),
+                        search_string => $uparse->se_term($url),
+                    };
+                } else {
+                    return $uparse->se_term($url);
+                }
+            }];
+    } else {
+        return [500, "BUG: Unknown module", sub {undef}];
     }
 }
 
